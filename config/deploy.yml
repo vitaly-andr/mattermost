@@ -1,0 +1,131 @@
+# Mattermost Production Deployment Configuration
+service: sputnik_ch
+
+# Docker image configuration
+image: viandrianoff/sputnik_ch:latest
+
+# Deploy to your server
+servers:
+  web:
+    hosts:
+      - chat-sputnik.andranoff.online
+    options:
+      memory: 2g
+
+# SSL configuration
+proxy:
+  ssl: true
+  forward_headers: true
+  host: chat-sputnik.andranoff.online
+  app_port: 8065
+
+# Registry configuration
+registry:
+  username: viandrianoff
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Builder configuration
+builder:
+  arch: arm64
+  args:
+    progress: plain
+
+# Environment variables
+env:
+  clear:
+    # Database configuration
+    MM_SQLSETTINGS_DRIVERNAME: "postgres"
+    MM_SQLSETTINGS_DATASOURCE: "postgres://mattermost:${POSTGRES_PASSWORD}@db:5432/mattermost?sslmode=disable"
+    
+    # Redis configuration
+    MM_REDISSETTINGS_ADDRESS: "redis:6379"
+    MM_REDISSETTINGS_ENABLE: "true"
+    
+    # File storage (Hetzner S3)
+    MM_FILESETTINGS_DRIVERNAME: "s3"
+    MM_FILESETTINGS_AMAZONS3ENDPOINT: "https://hel1.your-objectstorage.com"
+    MM_FILESETTINGS_AMAZONS3BUCKET: "sputnikgel"
+    MM_FILESETTINGS_AMAZONS3SSL: "true"
+    
+    # Server configuration
+    MM_SERVICESETTINGS_SITEURL: "https://chat-sputnik.andranoff.online"
+    MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+    MM_SERVICESETTINGS_ENABLELOCALMODE: "false"
+    
+    # Email configuration (optional)
+    MM_EMAILSETTINGS_ENABLE: "false"
+    
+    # Team settings
+    MM_TEAMSETTINGS_ENABLEUSERCREATION: "true"
+    MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+    
+    # Security
+    MM_SERVICESETTINGS_ENABLEMULTIFACTORAUTHENTICATION: "true"
+    MM_SERVICESETTINGS_ENABLEINCOMINGWEBHOOKS: "true"
+    MM_SERVICESETTINGS_ENABLEOUTGOINGWEBHOOKS: "true"
+    MM_SERVICESETTINGS_ENABLECOMMANDS: "true"
+    
+  secret:
+    - POSTGRES_PASSWORD
+    - MM_REDISSETTINGS_PASSWORD
+    - MM_FILESETTINGS_AMAZONS3ACCESSKEYID
+    - MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY
+
+# Accessory services
+accessories:
+  db:
+    image: postgres:13
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:5432:5432"
+    options:
+      memory: 1g
+    env:
+      clear:
+        POSTGRES_DB: mattermost
+        POSTGRES_USER: mattermost
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+    files:
+      - config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    cmd: postgres -c config_file=/etc/postgresql/postgresql.conf
+
+  redis:
+    image: redis:7.4.0
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:6379:6379"
+    options:
+      memory: 512m
+    env:
+      secret:
+        - MM_REDISSETTINGS_PASSWORD
+    directories:
+      - data:/data
+    cmd: redis-server --appendonly yes --requirepass ${MM_REDISSETTINGS_PASSWORD}
+
+  # MinIO removed - using Hetzner Storage Box instead
+
+# Health check
+healthcheck:
+  path: /api/v4/system/ping
+  port: 8065
+  max_attempts: 10
+  interval: 30s
+
+# Persistent volumes for data storage
+volumes:
+  - "mattermost_data:/mattermost/data"
+  - "mattermost_logs:/mattermost/logs"
+  - "mattermost_plugins:/mattermost/plugins"
+  - "mattermost_client:/mattermost/client"
+
+# Rolling deploy configuration
+boot:
+  limit: 1
+  wait: 30
+
+# SSH configuration
+ssh:
+  user: deploy
