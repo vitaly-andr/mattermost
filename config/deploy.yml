@@ -42,6 +42,12 @@ env:
     MM_REDISSETTINGS_ADDRESS: "redis:6379"
     MM_REDISSETTINGS_ENABLE: "true"
     
+    # Elasticsearch configuration
+    MM_ELASTICSEARCHSETTINGS_CONNECTIONURL: "http://elasticsearch:9200"
+    MM_ELASTICSEARCHSETTINGS_ENABLE: "true"
+    MM_ELASTICSEARCHSETTINGS_ENABLEINDEXING: "true"
+    MM_ELASTICSEARCHSETTINGS_ENABLESEARCHING: "true"
+    
     # File storage (Hetzner S3)
     MM_FILESETTINGS_DRIVERNAME: "s3"
     MM_FILESETTINGS_AMAZONS3ENDPOINT: "https://hel1.your-objectstorage.com"
@@ -71,6 +77,7 @@ env:
     - MM_REDISSETTINGS_PASSWORD
     - MM_FILESETTINGS_AMAZONS3ACCESSKEYID
     - MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY
+    - GF_SECURITY_ADMIN_PASSWORD
 
 # Accessory services
 accessories:
@@ -105,14 +112,92 @@ accessories:
       - data:/data
     cmd: redis-server --appendonly yes --requirepass ${MM_REDISSETTINGS_PASSWORD}
 
-  # MinIO removed - using Hetzner Storage Box instead
+  prometheus:
+    image: prom/prometheus:latest
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:9091:9090"
+    options:
+      memory: 1g
+    directories:
+      - data:/prometheus
+    files:
+      - server/build/docker/prometheus.yml:/etc/prometheus/prometheus.yml
+    cmd: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/etc/prometheus/console_libraries --web.console.templates=/etc/prometheus/consoles --web.enable-lifecycle
 
-# Health check
-healthcheck:
-  path: /api/v4/system/ping
-  port: 8065
-  max_attempts: 10
-  interval: 30s
+  grafana:
+    image: grafana/grafana:latest
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:3000:3000"
+    options:
+      memory: 512m
+    env:
+      secret:
+        - GF_SECURITY_ADMIN_PASSWORD
+      clear:
+        GF_SECURITY_ADMIN_USER: admin
+        GF_INSTALL_PLUGINS: prometheus
+    directories:
+      - data:/var/lib/grafana
+    files:
+      - server/build/docker/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - server/build/docker/grafana/provisioning:/etc/grafana/provisioning
+      - server/build/docker/grafana/dashboards:/var/lib/grafana/dashboards
+
+  elasticsearch:
+    image: mattermostdevelopment/mattermost-elasticsearch:8.9.0
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:9200:9200"
+    options:
+      memory: 2g
+    env:
+      clear:
+        discovery.type: single-node
+        xpack.security.enabled: "false"
+        ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    directories:
+      - data:/usr/share/elasticsearch/data
+
+  loki:
+    image: grafana/loki:3.0.0
+    host: chat-sputnik.andranoff.online
+    port: "127.0.0.1:3100:3100"
+    options:
+      memory: 512m
+    directories:
+      - data:/loki
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    host: chat-sputnik.andranoff.online
+    options:
+      memory: 256m
+    files:
+      - server/build/docker/promtail/promtail-local-config.yaml:/etc/promtail/docker-config.yaml
+    directories:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - logs:/logs
+    cmd: -config.file=/etc/promtail/docker-config.yaml
+
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:latest
+  #   host: chat-sputnik.andranoff.online
+  #   port: "127.0.0.1:8081:8080"
+  #   options:
+  #     memory: 1g
+  #   env:
+  #     secret:
+  #       - KEYCLOAK_ADMIN_PASSWORD
+  #     clear:
+  #       KEYCLOAK_ADMIN: admin
+  #       KC_HTTP_ENABLED: "true"
+  #       KC_HOSTNAME_STRICT: "false"
+  #       KC_HOSTNAME_STRICT_HTTPS: "false"
+  #   directories:
+  #     - data:/opt/keycloak/data
+  #   cmd: start-dev
+
+
 
 # Persistent volumes for data storage
 volumes:

@@ -248,7 +248,7 @@ SECRET_VALUE=$(kamal secrets extract "Record Name" $SECRETS)
 - ❌ Не логировать секретные значения
 - ❌ Не сохранять BW_SESSION в файлы
 
-### 8. Автоматизация с Touch ID (создан скрипт):
+etup### 8. Автоматизация с Touch ID (создан скрипт):
 
 **Скрипт `scripts/bw-unlock.sh`:**
 - ✅ **Создан** и готов к использованию
@@ -423,8 +423,8 @@ MM_LOGSETTINGS_CONSOLELEVEL=INFO
 
 ## 💾 Ресурсы сервера
 
-### Минимальные требования:
-- **RAM**: 6GB (Mattermost 2GB + PostgreSQL 1GB + Redis 512MB + Elasticsearch 2GB + система 512MB)
+### Минимальные требования (полный стек + SSO):
+- **RAM**: 10GB (Mattermost 2GB + PostgreSQL 1GB + Redis 512MB + Elasticsearch 2GB + Prometheus 1GB + Grafana 512MB + Loki 512MB + Promtail 256MB + Keycloak 1GB + система 1GB)
 - **CPU**: 2 cores
 - **Диск**: 20GB + место для данных
 - **Сеть**: Стабильное соединение
@@ -434,31 +434,276 @@ YtkmpzPf,snm3432!### Hetzner CAX21 (ARM64):
 - €8.21/месяц
 - ✅ Достаточно для наших нужд
 
-## 🚀 План выполнения
+## 🚀 Поэтапный план деплоя
 
-### Этап 1: Подготовка
-1. [ ] Создать Multi-stage Dockerfile для сборки из исходников
-2. [ ] Настроить Kamal2 конфигурацию с accessories
-3. [ ] Настроить секреты и переменные окружения
-4. [ ] Проверить доступ к Hetzner Object Storage
+### 🎯 Этап 1: Базовый Mattermost (ТЕКУЩИЙ)
+**Цель:** Запустить основные сервисы и проверить работу
 
-### Этап 2: Локальное тестирование
-1. [ ] Собрать Docker образ из исходников локально
-2. [ ] Протестировать accessories (PostgreSQL, Redis, Elasticsearch)
-3. [ ] Проверить подключение к Hetzner S3
-4. [ ] Проверить сборку webapp и server
+**Сервисы:**
+- ✅ Mattermost (основное приложение)
+- ✅ PostgreSQL (база данных)
+- ✅ Redis (кэширование)
+- ✅ Elasticsearch (поиск)
 
-### Этап 3: Деплой
-1. [ ] `kamal setup` - первоначальная настройка
-2. [ ] `kamal deploy` - деплой приложения
-3. [ ] Настроить SSL сертификаты
-4. [ ] Создать первого администратора
+**Команды:**
+```bash
+# Подготовка
+source scripts/bw-unlock.sh
+kamal setup
 
-### Этап 4: Мониторинг
-1. [ ] Настроить логи
-2. [ ] Проверить health checks
-3. [ ] Настроить бэкапы
-4. [ ] Мониторинг ресурсов
+# Деплой базовых сервисов
+kamal deploy
+
+# Проверка
+curl https://chat-sputnik.andranoff.online/api/v4/system/ping
+```
+
+**Проверка работы:**
+1. [ ] Mattermost открывается в браузере
+2. [ ] Создание первого администратора работает
+3. [ ] Поиск по сообщениям работает
+4. [ ] Загрузка файлов в Hetzner S3 работает
+
+---
+
+### 📊 Этап 2: Мониторинг (СЛЕДУЮЩИЙ)
+**Цель:** Добавить Prometheus + Grafana для мониторинга
+
+**Как включить:**
+```bash
+# 1. Раскомментировать в config/deploy.yml:
+# prometheus, grafana, loki, promtail
+
+# 2. Обновить конфигурацию
+kamal app boot --reboot  # Перезапуск с новой конфигурацией
+```
+
+**Доступ к мониторингу:**
+- Grafana: через Cloudflare Tunnel (настроим)
+- Prometheus: через Cloudflare Tunnel (настроим)
+
+**Проверка работы:**
+1. [ ] Grafana открывается (admin + безопасный пароль)
+2. [ ] Дашборды Mattermost загружаются
+3. [ ] Prometheus собирает метрики
+4. [ ] Loki собирает логи
+
+---
+
+### 🔑 Этап 3: SSO с Keycloak (ФИНАЛЬНЫЙ)
+**Цель:** Добавить корпоративную аутентификацию
+
+**Как включить:**
+```bash
+# 1. Раскомментировать keycloak в config/deploy.yml
+# 2. Добавить KEYCLOAK_ADMIN_PASSWORD в secrets
+# 3. Обновить конфигурацию
+kamal app boot --reboot
+
+# 4. Настроить Keycloak через веб-интерфейс
+# 5. Добавить OpenID настройки в Mattermost
+```
+
+**Настройка SSO:**
+1. [ ] Создать Realm "andrianoff-corp"
+2. [ ] Создать группы пользователей
+3. [ ] Настроить клиент для Mattermost
+4. [ ] Включить OpenID Connect в Mattermost
+5. [ ] Протестировать "Login with Company Account"
+
+---
+
+### 🔄 Как переключаться между этапами:
+
+#### **Включение сервисов:**
+```bash
+# Раскомментировать нужные accessories в config/deploy.yml
+# Добавить секреты в .kamal/secrets (если нужно)
+kamal app boot --reboot
+```
+
+#### **Отключение сервисов:**
+```bash
+# Закомментировать accessories в config/deploy.yml  
+kamal app boot --reboot
+```
+
+#### **Обновление конфигурации:**
+```bash
+# После изменений в deploy.yml
+kamal deploy  # Полный редеплой
+# или
+kamal app boot --reboot  # Только перезапуск с новой конфигурацией
+```
+
+### 💾 Ресурсы по этапам:
+
+| Этап | Сервисы | RAM | Hetzner |
+|------|---------|-----|---------|
+| 1 | Базовый | ~6GB | CAX21 (8GB) ✅ |
+| 2 | +Мониторинг | ~8GB | CAX21 (8GB) ⚠️ |
+| 3 | +SSO | ~9GB | CAX31 (16GB) ✅ |
+
+## 🔑 Keycloak SSO - настройка корпоративной аутентификации
+
+### Зачем нужен Keycloak для вашей инфраструктуры:
+**Ваши сервисы:**
+- 💬 **Mattermost** - корпоративный чат
+- 📁 **Seafile** - файловое хранилище
+- 📧 **Mailcow** - почтовый сервер  
+- 🛒 **Интернет-магазин** - с Devise (Ruby/Rails)
+- 🌐 **Админка сайта** - управление
+
+**Проблема без SSO:** каждый сервис = отдельный логин/пароль
+**Решение с Keycloak:** один логин для всех сервисов
+
+### Пошаговая настройка Keycloak:
+
+#### Этап 1: Создание Realm (5 минут)
+1. Откройте Keycloak Admin: `http://localhost:8081` (admin/безопасный_пароль)
+2. Создайте новый Realm: **"andrianoff-corp"**
+3. Настройте базовые параметры:
+   - Display name: "Andrianoff Corporation"
+   - Frontend URL: "https://auth.andrianoff.online"
+
+#### Этап 2: Создание групп (5 минут)
+```
+Groups → Create:
+├── "Shop Admins" - администраторы магазина
+├── "Developers" - разработчики  
+├── "Support" - поддержка
+├── "Managers" - менеджеры
+└── "Users" - обычные пользователи
+```
+
+#### Этап 3: Создание пользователей (10 минут)
+```
+Users → Add User:
+┌─────────────────────────────┐
+│ Username: vitaly            │
+│ Email: vitaly@andrianoff.online │
+│ First Name: Vitaly          │
+│ Last Name: Andrianov        │
+│ Groups: [Shop Admins, Developers] │
+└─────────────────────────────┘
+
+Credentials → Set Password:
+- Password: secure_password_123
+- Temporary: No
+```
+
+#### Этап 4: Настройка клиентов для каждого сервиса (по 5 минут):
+
+**Mattermost Client:**
+```
+Clients → Create Client:
+├── Client ID: mattermost
+├── Protocol: openid-connect
+├── Root URL: https://chat-sputnik.andranoff.online
+├── Valid redirect URIs: https://chat-sputnik.andranoff.online/*
+├── Web origins: https://chat-sputnik.andranoff.online
+└── Access Type: confidential
+```
+
+**Seafile Client:**
+```
+Clients → Create Client:
+├── Client ID: seafile
+├── Protocol: openid-connect  
+├── Root URL: https://files.andrianoff.online
+├── Valid redirect URIs: https://files.andrianoff.online/oauth/callback/
+└── Access Type: confidential
+```
+
+**Shop Admin Client:**
+```
+Clients → Create Client:
+├── Client ID: shop-admin
+├── Protocol: openid-connect
+├── Root URL: https://shop.andrianoff.online
+├── Valid redirect URIs: https://shop.andrianoff.online/auth/keycloak/callback
+└── Access Type: confidential
+```
+
+### Интеграция с сервисами:
+
+#### Mattermost (добавить в deploy.yml):
+```yaml
+# OpenID Connect настройки
+MM_OPENIDSETTINGS_ENABLE: "true"
+MM_OPENIDSETTINGS_ID: "mattermost"
+MM_OPENIDSETTINGS_SECRET: "client-secret-from-keycloak"
+MM_OPENIDSETTINGS_DISCOVERYENDPOINT: "https://auth.andrianoff.online/realms/andrianoff-corp/.well-known/openid_configuration"
+MM_OPENIDSETTINGS_BUTTONTEXT: "Login with Company Account"
+MM_OPENIDSETTINGS_BUTTONCOLOR: "#0066cc"
+```
+
+#### Seafile (в seahub_settings.py):
+```python
+ENABLE_OAUTH = True
+OAUTH_PROVIDER_DOMAIN = 'auth.andrianoff.online'
+OAUTH_CLIENT_ID = 'seafile'
+OAUTH_CLIENT_SECRET = 'client-secret-from-keycloak'
+OAUTH_AUTHORIZATION_URL = 'https://auth.andrianoff.online/realms/andrianoff-corp/protocol/openid-connect/auth'
+OAUTH_TOKEN_URL = 'https://auth.andrianoff.online/realms/andrianoff-corp/protocol/openid-connect/token'
+OAUTH_USER_INFO_URL = 'https://auth.andrianoff.online/realms/andrianoff-corp/protocol/openid-connect/userinfo'
+```
+
+#### Rails Devise (в вашем магазине):
+```ruby
+# Gemfile
+gem 'omniauth'
+gem 'omniauth-keycloak'
+gem 'omniauth-rails_csrf_protection'
+
+# config/initializers/devise.rb
+config.omniauth :keycloak_openid,
+  'shop-admin',
+  'client-secret-from-keycloak',
+  client_options: {
+    site: 'https://auth.andrianoff.online',
+    realm: 'andrianoff-corp'
+  }
+
+# routes.rb
+devise_for :users, controllers: { 
+  omniauth_callbacks: 'users/omniauth_callbacks' 
+}
+```
+
+### Заведение новых пользователей:
+
+#### Способ 1: Через Keycloak Admin (рекомендуется)
+1. Откройте Keycloak Admin Console
+2. Users → Add User
+3. Заполните данные + назначьте группы
+4. Set Password → установите пароль
+5. Пользователь сразу может логиниться во все сервисы
+
+#### Способ 2: Самостоятельная регистрация
+```
+Keycloak Settings → Login:
+├── User registration: ON
+├── Email verification: ON  
+├── Forgot password: ON
+└── Remember me: ON
+```
+Пользователи могут сами регистрироваться на auth.andrianoff.online
+
+#### Способ 3: Приглашения
+```
+Keycloak → Users → Actions → Send Email:
+- Invite user with temporary password
+- User must change password on first login
+```
+
+### Управление доступом:
+```
+Изменить группу пользователя в Keycloak:
+├── Добавить в "Shop Admins" → получает доступ к админке
+├── Убрать из "Developers" → теряет доступ к разработке
+└── Деактивировать → теряет доступ везде
+```
 
 ## 🔄 Обновления
 
