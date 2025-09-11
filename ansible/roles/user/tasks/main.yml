@@ -1,0 +1,52 @@
+---
+# User role - deploy user configuration
+
+- name: Create deploy user
+  user:
+    name: "{{ app_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+  tags: [user]
+
+- name: Set up SSH directory for app user
+  file:
+    path: "/home/{{ app_user }}/.ssh"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0700'
+  tags: [user, ssh]
+
+- name: Copy SSH authorized keys from root
+  copy:
+    src: /root/.ssh/authorized_keys
+    dest: "/home/{{ app_user }}/.ssh/authorized_keys"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+    remote_src: yes
+  tags: [user, ssh]
+
+- name: Allow app user sudo without password for docker
+  lineinfile:
+    path: /etc/sudoers.d/{{ app_user }}
+    line: "{{ app_user }} ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/local/bin/docker-compose, /usr/bin/systemctl"
+    create: yes
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  tags: [user, sudo]
+
+- name: Create application directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  loop:
+    - /home/{{ app_user }}/apps
+    - /home/{{ app_user }}/backups
+    - /home/{{ app_user }}/scripts
+  tags: [user, directories]

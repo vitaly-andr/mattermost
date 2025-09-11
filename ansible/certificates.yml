@@ -1,0 +1,89 @@
+---
+# Ansible Playbook for Let's Encrypt wildcard certificates
+- name: Setup Let's Encrypt wildcard certificates for Cloudflare services
+  hosts: infrastructure
+  become: yes
+  vars:
+    domain: andrianoff.online
+    email: vitaly.reg@andrianoff.online
+    cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
+    
+  tasks:
+    - name: Install certbot and Cloudflare plugin
+      package:
+        name:
+          - snapd
+        state: present
+        
+    - name: Install certbot via snap
+      snap:
+        name: certbot
+        classic: yes
+        
+    - name: Install Cloudflare plugin
+      snap:
+        name: certbot-dns-cloudflare
+        
+    - name: Create Cloudflare credentials file
+      copy:
+        content: |
+          dns_cloudflare_api_token = {{ cloudflare_api_token }}
+        dest: /etc/cloudflare-credentials.ini
+        mode: '0600'
+        owner: root
+        group: root
+        
+    - name: Generate wildcard certificate
+      command: >
+        certbot certonly
+        --dns-cloudflare
+        --dns-cloudflare-credentials /etc/cloudflare-credentials.ini
+        --email {{ email }}
+        --agree-tos
+        --non-interactive
+        --cert-name andrianoff-wildcard
+        -d "*.{{ domain }}"
+        -d "{{ domain }}"
+      args:
+        creates: /etc/letsencrypt/live/andrianoff-wildcard/fullchain.pem
+        
+    - name: Setup certificate renewal cron job
+      cron:
+        name: "Renew Let's Encrypt certificates"
+        minute: "0"
+        hour: "2"
+        job: "certbot renew --quiet"
+        
+    - name: Create certificates directory for services
+      file:
+        path: /etc/ssl/sputnik
+        state: directory
+        mode: '0755'
+        
+    - name: Copy certificates for services
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        remote_src: yes
+        mode: '0644'
+      loop:
+        - { src: "/etc/letsencrypt/live/andrianoff-wildcard/fullchain.pem", dest: "/etc/ssl/sputnik/fullchain.pem" }
+        - { src: "/etc/letsencrypt/live/andrianoff-wildcard/privkey.pem", dest: "/etc/ssl/sputnik/privkey.pem" }
+        
+    - name: Show certificate information
+      debug:
+        msg: |
+          Wildcard certificate created for *.andrianoff.online
+          
+          Certificate files:
+          - /etc/ssl/sputnik/fullchain.pem
+          - /etc/ssl/sputnik/privkey.pem
+          
+          Use these certificates in your services:
+          - Grafana: SSL_CERT_FILE=/etc/ssl/sputnik/fullchain.pem
+          - Keycloak: KC_HTTPS_CERTIFICATE_FILE=/etc/ssl/sputnik/fullchain.pem  
+          - Prometheus: --web.config.file with TLS settings
+          
+          Cloudflare Tunnel GUI configuration:
+          - Add your services with HTTPS endpoints
+          - Point to https://localhost:port with certificates

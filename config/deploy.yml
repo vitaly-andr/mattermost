@@ -4,13 +4,18 @@ service: sputnik_ch
 # Docker image configuration
 image: viandrianoff/sputnik_ch:latest
 
-# Deploy to your server
+# Deploy to multiple servers
 servers:
   web:
     hosts:
-      - chat-sputnik.andranoff.online
+      - chat-sputnik.andrianoff.online  # SpMattermost (AMD64) - Mattermost app
     options:
-      memory: 2g
+      memory: 3g
+  infrastructure:
+    hosts:
+      - etc-sputnik.andrianoff.online   # Only-Sputnik (ARM64) - Infrastructure
+    options:
+      memory: 1g
 
 # SSL configuration
 proxy:
@@ -25,25 +30,32 @@ registry:
   password:
     - KAMAL_REGISTRY_PASSWORD
 
-# Builder configuration
+# Builder configuration  
 builder:
-  arch: arm64
+  arch: amd64
   args:
     progress: plain
+
+# Builder for ARM64 accessories
+builders:
+  infrastructure:
+    arch: arm64
+    args:
+      progress: plain
 
 # Environment variables
 env:
   clear:
-    # Database configuration
+    # Database configuration (external ARM64 server)
     MM_SQLSETTINGS_DRIVERNAME: "postgres"
-    MM_SQLSETTINGS_DATASOURCE: "postgres://mattermost:${POSTGRES_PASSWORD}@db:5432/mattermost?sslmode=disable"
+    MM_SQLSETTINGS_DATASOURCE: "postgres://mattermost:${POSTGRES_PASSWORD}@10.0.0.3:5432/mattermost?sslmode=disable"
     
-    # Redis configuration
-    MM_REDISSETTINGS_ADDRESS: "redis:6379"
+    # Redis configuration (ARM64 server через private network)
+    MM_REDISSETTINGS_ADDRESS: "10.0.0.3:6379"
     MM_REDISSETTINGS_ENABLE: "true"
     
-    # Elasticsearch configuration
-    MM_ELASTICSEARCHSETTINGS_CONNECTIONURL: "http://elasticsearch:9200"
+    # Elasticsearch configuration (ARM64 server через private network)
+    MM_ELASTICSEARCHSETTINGS_CONNECTIONURL: "http://elastic:${ELASTICSEARCH_PASSWORD}@10.0.0.3:9200"
     MM_ELASTICSEARCHSETTINGS_ENABLE: "true"
     MM_ELASTICSEARCHSETTINGS_ENABLEINDEXING: "true"
     MM_ELASTICSEARCHSETTINGS_ENABLESEARCHING: "true"
@@ -74,35 +86,39 @@ env:
     
   secret:
     - POSTGRES_PASSWORD
+    - KEYCLOAK_DB_PASSWORD
     - MM_REDISSETTINGS_PASSWORD
     - MM_FILESETTINGS_AMAZONS3ACCESSKEYID
     - MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY
     - GF_SECURITY_ADMIN_PASSWORD
+    - KEYCLOAK_ADMIN_PASSWORD
+    - ELASTICSEARCH_PASSWORD
 
-# Accessory services
+# Infrastructure accessories (deployed to ARM64 server)
 accessories:
   db:
     image: postgres:13
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:5432:5432"
+    roles: [infrastructure]
+    port: "10.0.0.3:5432:5432"  # Private network
     options:
-      memory: 1g
+      memory: 2g
     env:
       clear:
         POSTGRES_DB: mattermost
         POSTGRES_USER: mattermost
+        POSTGRES_MULTIPLE_DATABASES: "mattermost,keycloak"
       secret:
         - POSTGRES_PASSWORD
     directories:
       - data:/var/lib/postgresql/data
     files:
-      - config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-    cmd: postgres -c config_file=/etc/postgresql/postgresql.conf
+      - config/postgres/init-keycloak.sql:/docker-entrypoint-initdb.d/init-keycloak.sql
+    cmd: postgres
 
   redis:
     image: redis:7.4.0
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:6379:6379"
+    roles: [infrastructure]
+    port: "10.0.0.3:6379:6379"  # Private network
     options:
       memory: 512m
     env:
@@ -112,10 +128,34 @@ accessories:
       - data:/data
     cmd: redis-server --appendonly yes --requirepass ${MM_REDISSETTINGS_PASSWORD}
 
+  elasticsearch:
+    image: mattermostdevelopment/mattermost-elasticsearch:8.9.0
+    roles: [infrastructure]
+    port: "10.0.0.3:9200:9200"  # Private network
+    options:
+      memory: 2g
+    env:
+      secret:
+        - ELASTICSEARCH_PASSWORD
+      clear:
+        discovery.type: single-node
+        xpack.security.enabled: "true"
+        ELASTIC_PASSWORD: "${ELASTICSEARCH_PASSWORD}"
+        ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    directories:
+      - data:/usr/share/elasticsearch/data
+
+  dejavu:
+    image: appbaseio/dejavu:3.4.2
+    roles: [infrastructure]
+    port: "127.0.0.1:1358:1358"  # Через Cloudflare Tunnel
+    options:
+      memory: 128m
+
   prometheus:
     image: prom/prometheus:latest
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:9091:9090"
+    roles: [infrastructure]
+    port: "127.0.0.1:9091:9090"  # Localhost только
     options:
       memory: 1g
     directories:
@@ -126,8 +166,8 @@ accessories:
 
   grafana:
     image: grafana/grafana:latest
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:3000:3000"
+    roles: [infrastructure]
+    port: "127.0.0.1:3000:3000"  # Localhost только
     options:
       memory: 512m
     env:
@@ -135,7 +175,6 @@ accessories:
         - GF_SECURITY_ADMIN_PASSWORD
       clear:
         GF_SECURITY_ADMIN_USER: admin
-        GF_INSTALL_PLUGINS: prometheus
     directories:
       - data:/var/lib/grafana
     files:
@@ -143,59 +182,27 @@ accessories:
       - server/build/docker/grafana/provisioning:/etc/grafana/provisioning
       - server/build/docker/grafana/dashboards:/var/lib/grafana/dashboards
 
-  elasticsearch:
-    image: mattermostdevelopment/mattermost-elasticsearch:8.9.0
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:9200:9200"
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    roles: [infrastructure]
+    port: "127.0.0.1:8081:8080"  # Localhost только
     options:
-      memory: 2g
+      memory: 1g
     env:
+      secret:
+        - KEYCLOAK_ADMIN_PASSWORD
+        - KEYCLOAK_DB_PASSWORD
       clear:
-        discovery.type: single-node
-        xpack.security.enabled: "false"
-        ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+        KEYCLOAK_ADMIN: admin
+        KC_DB: postgres
+        KC_DB_URL: "jdbc:postgresql://10.0.0.3:5432/keycloak"
+        KC_DB_USERNAME: keycloak
+        KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD}"
+        KC_HOSTNAME: "users-sputnik.andrianoff.online"
+        KC_PROXY: "edge"
     directories:
-      - data:/usr/share/elasticsearch/data
-
-  loki:
-    image: grafana/loki:3.0.0
-    host: chat-sputnik.andranoff.online
-    port: "127.0.0.1:3100:3100"
-    options:
-      memory: 512m
-    directories:
-      - data:/loki
-
-  promtail:
-    image: grafana/promtail:3.0.0
-    host: chat-sputnik.andranoff.online
-    options:
-      memory: 256m
-    files:
-      - server/build/docker/promtail/promtail-local-config.yaml:/etc/promtail/docker-config.yaml
-    directories:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - logs:/logs
-    cmd: -config.file=/etc/promtail/docker-config.yaml
-
-  # keycloak:
-  #   image: quay.io/keycloak/keycloak:latest
-  #   host: chat-sputnik.andranoff.online
-  #   port: "127.0.0.1:8081:8080"
-  #   options:
-  #     memory: 1g
-  #   env:
-  #     secret:
-  #       - KEYCLOAK_ADMIN_PASSWORD
-  #     clear:
-  #       KEYCLOAK_ADMIN: admin
-  #       KC_HTTP_ENABLED: "true"
-  #       KC_HOSTNAME_STRICT: "false"
-  #       KC_HOSTNAME_STRICT_HTTPS: "false"
-  #   directories:
-  #     - data:/opt/keycloak/data
-  #   cmd: start-dev
+      - data:/opt/keycloak/data
+    cmd: start --optimized
 
 
 

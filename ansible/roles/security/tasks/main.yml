@@ -1,0 +1,109 @@
+---
+# Security configuration tasks
+
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [security]
+
+- name: Install security packages
+  apt:
+    name:
+      - fail2ban
+      - unattended-upgrades
+    state: present
+  tags: [security]
+
+- name: Configure SSH security
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    backup: yes
+  notify: restart ssh
+  tags: [security]
+
+- name: Enable and start fail2ban
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags: [security]
+
+- name: Configure fail2ban
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    backup: yes
+  notify: restart fail2ban
+  tags: [security]
+
+- name: Create fail2ban filters for Mattermost
+  copy:
+    content: "{{ item.content }}"
+    dest: "/etc/fail2ban/filter.d/{{ item.name }}.conf"
+    mode: '0644'
+  loop:
+    - name: mattermost-auth
+      content: |
+        [Definition]
+        failregex = .*Failed login attempt.*ip=<HOST>.*
+                    .*Invalid login attempt.*remote_addr=<HOST>.*
+                    .*Authentication failed.*ip=<HOST>.*
+        ignoreregex =
+    - name: mattermost-api
+      content: |
+        [Definition]
+        failregex = .*API rate limit exceeded.*ip=<HOST>.*
+                    .*Too many requests.*remote_addr=<HOST>.*
+        ignoreregex =
+  when: "'chat-sputnik' in inventory_hostname"
+  notify: restart fail2ban
+  tags: [security, mattermost]
+
+- name: Create fail2ban filters for infrastructure services
+  copy:
+    content: "{{ item.content }}"
+    dest: "/etc/fail2ban/filter.d/{{ item.name }}.conf"
+    mode: '0644'
+  loop:
+    - name: grafana
+      content: |
+        [Definition]
+        failregex = .*Failed login.*remote_addr=<HOST>.*
+                    .*Invalid credentials.*ip=<HOST>.*
+        ignoreregex =
+    - name: keycloak
+      content: |
+        [Definition]
+        failregex = .*Failed login.*ip=<HOST>.*
+                    .*Invalid user credentials.*remote_addr=<HOST>.*
+        ignoreregex =
+    - name: cockpit
+      content: |
+        [Definition]
+        failregex = .*pam_unix.*authentication failure.*rhost=<HOST>.*
+                    .*Failed password.*from <HOST>.*
+        ignoreregex =
+    - name: portainer
+      content: |
+        [Definition]
+        failregex = .*Invalid credentials.*ip=<HOST>.*
+                    .*Authentication failed.*remote_addr=<HOST>.*
+        ignoreregex =
+  when: "'etc-sputnik' in inventory_hostname"
+  notify: restart fail2ban
+  tags: [security, infrastructure]
+
+- name: Configure unattended upgrades
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    backup: yes
+  tags: [security]
+
+
+# Note: UFW is disabled since external Hetzner Cloud Firewall is used
+# Ports should be configured in Hetzner Cloud Console:
+# - 22 (SSH), 80 (HTTP), 443 (HTTPS), 8065 (Mattermost) for chat-sputnik
+# - 22 (SSH), 5432,6379,9200 (private network only) for etc-sputnik

@@ -1,0 +1,35 @@
+---
+# Common variables for all Mattermost infrastructure servers
+
+# User configuration
+app_user: deploy
+app_group: deploy
+
+# SSH configuration
+ssh_port: 22
+disable_root_login: true
+disable_password_auth: true
+
+# Fail2ban configuration
+fail2ban_enabled: true
+fail2ban_ssh_maxretry: 5
+fail2ban_ssh_bantime: 3600
+fail2ban_ssh_findtime: 600
+
+# Docker configuration
+docker_users:
+  - "{{ app_user }}"
+
+# Firewall configuration - using Hetzner Cloud Firewall
+# UFW disabled in favor of external firewall
+
+# Security updates
+auto_updates_enabled: true
+
+# Timezone
+server_timezone: Europe/Moscow
+
+# Private network configuration
+private_network: 10.0.0.0/16
+mattermost_server_ip: 10.0.0.2
+infrastructure_server_ip: 10.0.0.3

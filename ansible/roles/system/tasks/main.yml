@@ -1,0 +1,70 @@
+---
+# System role - basic system configuration
+
+- name: Set timezone
+  timezone:
+    name: "{{ server_timezone }}"
+  tags: [system]
+
+- name: Install essential packages
+  package:
+    name:
+      - htop
+      - curl
+      - wget
+      - git
+      - unzip
+      - vim
+      - jq
+      - unattended-upgrades
+      - logrotate
+      - rsync
+    state: present
+  tags: [system, packages]
+
+- name: Configure automatic security updates
+  copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::Unattended-Upgrade "1";
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: '0644'
+  tags: [system, security]
+
+- name: Configure logrotate for application logs
+  copy:
+    content: |
+      /var/log/mattermost/*.log {
+          daily
+          missingok
+          rotate 30
+          compress
+          delaycompress
+          notifempty
+          sharedscripts
+          postrotate
+              systemctl reload mattermost || true
+          endscript
+      }
+    dest: /etc/logrotate.d/mattermost
+    mode: '0644'
+  when: "'chat-sputnik' in inventory_hostname"
+  tags: [system, logs]
+
+- name: Create log directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /var/log/mattermost
+    - /var/log/grafana
+    - /var/log/keycloak
+  tags: [system, logs]
+
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+  tags: [system]

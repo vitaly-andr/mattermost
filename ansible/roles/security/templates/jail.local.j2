@@ -1,0 +1,77 @@
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+backend = auto
+usedns = warn
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600
+
+# Mattermost protection (only on chat-sputnik server)
+{% if 'chat-sputnik' in inventory_hostname %}
+[mattermost-auth]
+enabled = true
+port = 8065
+filter = mattermost-auth
+logpath = /var/log/mattermost/mattermost.log
+maxretry = 10
+bantime = 1800
+findtime = 300
+
+[mattermost-api]
+enabled = true
+port = 8065
+filter = mattermost-api
+logpath = /var/log/mattermost/mattermost.log
+maxretry = 50
+bantime = 900
+findtime = 300
+{% endif %}
+
+# Infrastructure services protection (only on etc-sputnik server)
+{% if 'etc-sputnik' in inventory_hostname %}
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 3
+bantime = 3600
+
+[grafana]
+enabled = true
+port = 3000
+filter = grafana
+logpath = /var/log/grafana/grafana.log
+maxretry = 10
+bantime = 1800
+
+[keycloak]
+enabled = true
+port = 8081
+filter = keycloak
+logpath = /opt/keycloak/logs/*.log
+maxretry = 10
+bantime = 1800
+
+[cockpit]
+enabled = true
+port = 9090
+filter = cockpit
+logpath = /var/log/cockpit/cockpit.log
+maxretry = 5
+bantime = 3600
+
+[portainer]
+enabled = true
+port = 9443
+filter = portainer
+logpath = /var/log/portainer/portainer.log
+maxretry = 5
+bantime = 3600
+{% endif %}

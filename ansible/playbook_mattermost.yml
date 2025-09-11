@@ -1,0 +1,65 @@
+---
+- name: Setup Mattermost Infrastructure Servers
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - group_vars/all.yml
+  
+  handlers:
+    - name: restart ssh
+      systemd:
+        name: ssh
+        state: restarted
+    
+    - name: restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+    
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+    
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: [system]
+
+  roles:
+    - system
+    - security
+    - docker
+    - user
+
+  post_tasks:
+    - name: Display setup information for Mattermost server
+      debug:
+        msg: |
+          ✅ Mattermost server (AMD64) setup completed!
+          🌐 URL: https://chat-sputnik.andrianoff.online
+          👤 SSH: ssh {{ app_user }}@{{ ansible_host }}
+          🐳 Docker: Ready for Kamal deployment
+          📝 Next: kamal setup && kamal deploy
+      when: "'chat-sputnik' in inventory_hostname"
+      tags: [verify]
+      
+    - name: Display setup information for Infrastructure server
+      debug:
+        msg: |
+          ✅ Infrastructure server (ARM64) setup completed!
+          🗄️ Services: PostgreSQL, Redis, Elasticsearch, Grafana, Keycloak
+          🌐 Monitoring: https://grafana-sputnik.andrianoff.online
+          🔐 SSO: https://users-sputnik.andrianoff.online
+          👤 SSH: ssh {{ app_user }}@{{ ansible_host }}
+          🐳 Docker: Ready for accessories deployment
+      when: "'etc-sputnik' in inventory_hostname"
+      tags: [verify]
