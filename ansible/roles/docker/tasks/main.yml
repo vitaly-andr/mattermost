@@ -12,16 +12,44 @@
     state: present
   tags: [docker]
 
-- name: Add Docker GPG key
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
-  tags: [docker]
-
-- name: Add Docker repository
+- name: Remove old Docker repository if exists
   apt_repository:
     repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: absent
+  ignore_errors: true
+  tags: [docker]
+
+- name: Remove old Docker GPG keys
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/keyrings/docker.asc
+    - /etc/apt/trusted.gpg.d/docker.asc
+    - /usr/share/keyrings/docker-archive-keyring.gpg
+  ignore_errors: true
+  tags: [docker]
+
+- name: Create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  tags: [docker]
+
+- name: Add Docker GPG key (new method)
+  shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+  tags: [docker]
+
+- name: Add Docker repository (new method)
+  apt_repository:
+    repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
+    update_cache: yes
   tags: [docker]
 
 - name: Install Docker

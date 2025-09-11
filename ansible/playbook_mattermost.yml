@@ -1,7 +1,7 @@
 ---
 - name: Setup Mattermost Infrastructure Servers
   hosts: all
-  become: yes
+  become: no
   gather_facts: yes
   
   vars_files:

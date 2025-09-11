@@ -1,0 +1,168 @@
+---
+- name: Diagnostic Check for Mattermost Infrastructure Servers
+  hosts: all
+  become: no
+  gather_facts: yes
+  
+  vars_files:
+    - group_vars/all.yml
+  
+  tasks:
+    - name: Display server information
+      debug:
+        msg: |
+          🔍 DIAGNOSTIC CHECK FOR MATTERMOST INFRASTRUCTURE
+          ===============================================
+          Host: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          Kernel: {{ ansible_kernel }}
+          Memory: {{ ansible_memtotal_mb }} MB
+          CPU Cores: {{ ansible_processor_cores }}
+
+    - name: Check Docker installation and conflicts
+      shell: |
+        echo "=== Docker Version ==="
+        docker --version 2>/dev/null || echo "Docker not installed"
+        echo "=== Docker Sources ==="
+        ls -la /etc/apt/sources.list.d/*docker* 2>/dev/null || echo "No Docker sources"
+        echo "=== Docker Keys ==="
+        ls -la /etc/apt/keyrings/docker* /etc/apt/trusted.gpg.d/docker* 2>/dev/null || echo "No Docker keys"
+        echo "=== APT Status ==="
+        apt list --installed | grep docker 2>/dev/null || echo "No Docker packages"
+      register: docker_diagnostic
+      ignore_errors: yes
+
+    - name: Display Docker diagnostic
+      debug:
+        msg: |
+          🐳 DOCKER DIAGNOSTIC:
+          {{ docker_diagnostic.stdout }}
+
+    - name: Check running services
+      shell: systemctl list-units --type=service --state=running | grep -E "(ssh|docker|cockpit|portainer|fail2ban|nginx)"
+      register: running_services
+      ignore_errors: yes
+
+    - name: Display running services
+      debug:
+        msg: |
+          🚀 RUNNING SERVICES:
+          {{ running_services.stdout if running_services.stdout else 'No relevant services found' }}
+
+    - name: Check listening ports
+      shell: netstat -tlnp | grep LISTEN | grep -E "(22|80|443|3000|8065|9090|9443)"
+      register: listening_ports
+      ignore_errors: yes
+
+    - name: Display listening ports
+      debug:
+        msg: |
+          🌐 LISTENING PORTS (relevant):
+          {{ listening_ports.stdout if listening_ports.stdout else 'No relevant ports found' }}
+
+    - name: Check Docker containers
+      shell: docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+      register: docker_containers
+      ignore_errors: yes
+
+    - name: Display Docker containers
+      debug:
+        msg: |
+          🐳 DOCKER CONTAINERS:
+          {{ docker_containers.stdout if docker_containers.stdout else 'No containers or Docker not running' }}
+
+    - name: Check private network configuration
+      shell: |
+        echo "=== Network Interfaces ==="
+        ip addr show | grep -E "(10\.0\.0\.|eth|ens)"
+        echo "=== Routes ==="
+        ip route | grep 10.0.0
+      register: network_config
+      ignore_errors: yes
+
+    - name: Display network configuration
+      debug:
+        msg: |
+          🌐 PRIVATE NETWORK CONFIG:
+          {{ network_config.stdout if network_config.stdout else 'No private network found' }}
+
+    - name: Check disk usage
+      shell: df -h
+      register: disk_usage
+
+    - name: Display disk usage
+      debug:
+        msg: |
+          💾 DISK USAGE:
+          {{ disk_usage.stdout }}
+
+    - name: Check memory usage
+      shell: free -h
+      register: memory_usage
+
+    - name: Display memory usage
+      debug:
+        msg: |
+          🧠 MEMORY USAGE:
+          {{ memory_usage.stdout }}
+
+    - name: Check Cloudflare Tunnel
+      shell: |
+        echo "=== Cloudflared Service ==="
+        systemctl status cloudflared 2>/dev/null || echo "Cloudflared not running"
+        echo "=== Cloudflared Config ==="
+        ls -la /etc/cloudflared/ 2>/dev/null || echo "No cloudflared config"
+      register: cloudflare_status
+      ignore_errors: yes
+
+    - name: Display Cloudflare status
+      debug:
+        msg: |
+          ☁️ CLOUDFLARE TUNNEL STATUS:
+          {{ cloudflare_status.stdout }}
+
+    - name: Check existing certificates
+      shell: |
+        echo "=== Let's Encrypt Certificates ==="
+        ls -la /etc/letsencrypt/live/ 2>/dev/null || echo "No Let's Encrypt certs"
+        echo "=== SSL Certificates ==="
+        find /etc/ssl -name "*.pem" -o -name "*.crt" 2>/dev/null | head -10 || echo "No SSL certs"
+      register: ssl_status
+      ignore_errors: yes
+
+    - name: Display SSL status
+      debug:
+        msg: |
+          🔐 SSL CERTIFICATES:
+          {{ ssl_status.stdout }}
+
+    - name: Final diagnostic summary
+      debug:
+        msg: |
+          ✅ MATTERMOST INFRASTRUCTURE DIAGNOSTIC COMPLETE
+          ============================================
+          
+          📋 KEY FINDINGS:
+          - Server: {{ inventory_hostname }} ({{ ansible_architecture }})
+          - Memory: {{ ansible_memtotal_mb }} MB
+          - Docker: {{ 'Installed' if docker_diagnostic.stdout is search('Docker version') else 'Not installed or broken' }}
+          - Private Network: {{ '10.0.0.x configured' if network_config.stdout is search('10.0.0') else 'Not configured' }}
+          
+          🔧 RECOMMENDATIONS FOR {{ inventory_hostname }}:
+          {% if 'chat-sputnik' in inventory_hostname %}
+          - AMD64 server perfect for Mattermost application
+          - Check port 8065 availability
+          - Verify SSL certificate setup
+          {% else %}
+          - ARM64 server perfect for infrastructure services  
+          - Check Docker conflicts before proceeding
+          - Verify private network connectivity
+          - Ensure Cockpit/Portainer won't be affected
+          {% endif %}
+          
+          🎯 NEXT STEPS:
+          1. Fix any Docker conflicts carefully
+          2. Verify private network connectivity between servers
+          3. Proceed with Kamal deployment

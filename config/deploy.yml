@@ -93,6 +93,7 @@ env:
     - GF_SECURITY_ADMIN_PASSWORD
     - KEYCLOAK_ADMIN_PASSWORD
     - ELASTICSEARCH_PASSWORD
+    - PORTAINER_ADMIN_PASSWORD
 
 # Infrastructure accessories (deployed to ARM64 server)
 accessories:
@@ -204,7 +205,39 @@ accessories:
       - data:/opt/keycloak/data
     cmd: start --optimized
 
+  cockpit:
+    image: quay.io/cockpit/ws:latest
+    roles: [infrastructure]
+    port: "127.0.0.1:9090:9090"  # Localhost только
+    options:
+      memory: 256m
+    directories:
+      - /var/run/cockpit:/var/run/cockpit
+    cmd: --no-tls
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    roles: [infrastructure]
+    port: "127.0.0.1:9443:9443"  # Localhost только
+    options:
+      memory: 256m
+    env:
+      secret:
+        - PORTAINER_ADMIN_PASSWORD
+    directories:
+      - data:/data
+    cmd: --admin-password-file /run/secrets/PORTAINER_ADMIN_PASSWORD
+
+  # Cockpit for Mattermost server
+  cockpit-mattermost:
+    image: quay.io/cockpit/ws:latest
+    roles: [web]
+    port: "127.0.0.1:9090:9090"  # Localhost только
+    options:
+      memory: 256m
+    directories:
+      - /var/run/cockpit:/var/run/cockpit
+    cmd: --no-tls
 
 # Persistent volumes for data storage
 volumes:

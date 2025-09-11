@@ -7,7 +7,7 @@ app_group: deploy
 
 # SSH configuration
 ssh_port: 22
-disable_root_login: true
+disable_root_login: false
 disable_password_auth: true
 
 # Fail2ban configuration
