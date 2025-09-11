@@ -2,7 +2,7 @@
 service: sputnik_ch
 
 # Docker image configuration
-image: viandrianoff/sputnik_ch:latest
+image: viandrianoff/sputnik_ch
 
 # Deploy to multiple servers
 servers:

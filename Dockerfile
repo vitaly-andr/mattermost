@@ -34,7 +34,7 @@ RUN apk add --no-cache git make ca-certificates tzdata
 # Copy go modules for dependency caching
 COPY go.mod go.sum ./
 COPY server/go.mod server/go.sum ./server/
-COPY public/go.mod public/go.sum ./public/
+COPY server/public/go.mod server/public/go.sum ./public/
 
 # Download dependencies
 WORKDIR /build/server
