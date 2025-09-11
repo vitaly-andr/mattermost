@@ -13,13 +13,13 @@ enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 10
-findtime = 600
-bantime = 1800
+maxretry = {{ fail2ban_ssh_maxretry }}
+findtime = {{ fail2ban_ssh_findtime }}
+bantime = {{ fail2ban_ssh_bantime }}
 
 # Progressive banning for repeat offenders
 [recidive]
-enabled = true
+enabled = false
 filter = recidive
 logpath = /var/log/fail2ban.log
 maxretry = 5      # 5 банов за 24 часа

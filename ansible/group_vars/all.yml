@@ -8,13 +8,13 @@ app_group: deploy
 # SSH configuration
 ssh_port: 22
 disable_root_login: false
-disable_password_auth: true
+disable_password_auth: false
 
 # Fail2ban configuration
 fail2ban_enabled: true
-fail2ban_ssh_maxretry: 5
-fail2ban_ssh_bantime: 3600
-fail2ban_ssh_findtime: 600
+fail2ban_ssh_maxretry: 20
+fail2ban_ssh_bantime: 900
+fail2ban_ssh_findtime: 1200
 
 # Docker configuration
 docker_users:
