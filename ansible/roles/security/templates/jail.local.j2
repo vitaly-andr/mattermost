@@ -13,9 +13,9 @@ enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = {{ fail2ban_ssh_maxretry }}
-findtime = {{ fail2ban_ssh_findtime }}
-bantime = {{ fail2ban_ssh_bantime }}
+maxretry = 10
+findtime = 600
+bantime = 1800
 
 # Progressive banning for repeat offenders
 [recidive]

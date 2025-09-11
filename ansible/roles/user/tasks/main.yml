@@ -19,14 +19,20 @@
     mode: '0700'
   tags: [user, ssh]
 
-- name: Copy SSH authorized keys from root
-  copy:
-    src: /root/.ssh/authorized_keys
-    dest: "/home/{{ app_user }}/.ssh/authorized_keys"
-    owner: "{{ app_user }}"
-    group: "{{ app_user }}"
-    mode: '0600'
-    remote_src: yes
+- name: Add SSH public key for app user
+  authorized_key:
+    user: "{{ app_user }}"
+    state: present
+    key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    exclusive: no
+  tags: [user, ssh]
+
+- name: Ensure root has the same SSH key
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    exclusive: no
   tags: [user, ssh]
 
 - name: Allow app user sudo without password for docker

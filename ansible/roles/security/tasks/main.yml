@@ -15,11 +15,36 @@
     state: present
   tags: [security]
 
-- name: Configure SSH security
-  template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
+- name: Configure SSH - disable password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
     backup: yes
+  notify: restart ssh
+  tags: [security]
+
+- name: Configure SSH - ensure PubkeyAuthentication is enabled
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+  notify: restart ssh
+  tags: [security]
+
+- name: Configure SSH - ensure PermitRootLogin is enabled
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin yes'
+  notify: restart ssh
+  tags: [security]
+
+- name: Remove problematic AuthenticationMethods line if exists
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^AuthenticationMethods'
+    state: absent
   notify: restart ssh
   tags: [security]
 
