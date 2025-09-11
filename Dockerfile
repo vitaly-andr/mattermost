@@ -9,15 +9,12 @@ WORKDIR /build
 # Install dependencies for native modules
 RUN apk add --no-cache python3 make g++ git
 
-# Copy webapp package files
-COPY webapp/package*.json ./webapp/
+# Copy all webapp source
+COPY webapp/ ./webapp/
 
-# Install webapp dependencies
+# Install webapp dependencies and build (using same logic as Makefile)
 WORKDIR /build/webapp
-RUN npm ci --no-optional --production=false
-
-# Copy webapp source
-COPY webapp/ ./
+RUN npm install
 
 # Build webapp
 RUN npm run build
@@ -42,7 +39,7 @@ RUN go mod download
 COPY . /build/
 
 # Copy built webapp from previous stage
-COPY --from=webapp-builder /build/webapp/dist /build/webapp/dist/
+COPY --from=webapp-builder /build/webapp/channels/dist /build/webapp/channels/dist/
 
 # Build server and tools
 WORKDIR /build/server
@@ -77,7 +74,7 @@ COPY --from=server-builder --chown=mattermost:mattermost /build/server/mattermos
 COPY --from=server-builder --chown=mattermost:mattermost /build/server/bin/mmctl /mattermost/bin/
 
 # Copy webapp
-COPY --from=webapp-builder --chown=mattermost:mattermost /build/webapp/dist /mattermost/client/
+COPY --from=webapp-builder --chown=mattermost:mattermost /build/webapp/channels/dist /mattermost/client/
 
 # Copy default config
 COPY --from=server-builder --chown=mattermost:mattermost /build/config /mattermost/config/
