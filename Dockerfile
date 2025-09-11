@@ -11,7 +11,6 @@ RUN apk add --no-cache python3 make g++ git
 
 # Copy webapp package files
 COPY webapp/package*.json ./webapp/
-COPY package*.json ./
 
 # Install webapp dependencies
 WORKDIR /build/webapp
@@ -32,7 +31,6 @@ WORKDIR /build
 RUN apk add --no-cache git make ca-certificates tzdata
 
 # Copy go modules for dependency caching
-COPY go.mod go.sum ./
 COPY server/go.mod server/go.sum ./server/
 COPY server/public/go.mod server/public/go.sum ./public/
 
@@ -44,7 +42,7 @@ RUN go mod download
 COPY . /build/
 
 # Copy built webapp from previous stage
-COPY --from=webapp-builder /build/dist /build/webapp/dist/
+COPY --from=webapp-builder /build/webapp/dist /build/webapp/dist/
 
 # Build server and tools
 WORKDIR /build/server
@@ -79,7 +77,7 @@ COPY --from=server-builder --chown=mattermost:mattermost /build/server/mattermos
 COPY --from=server-builder --chown=mattermost:mattermost /build/server/bin/mmctl /mattermost/bin/
 
 # Copy webapp
-COPY --from=webapp-builder --chown=mattermost:mattermost /build/dist /mattermost/client/
+COPY --from=webapp-builder --chown=mattermost:mattermost /build/webapp/dist /mattermost/client/
 
 # Copy default config
 COPY --from=server-builder --chown=mattermost:mattermost /build/config /mattermost/config/
