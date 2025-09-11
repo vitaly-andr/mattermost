@@ -36,12 +36,7 @@ builder:
   args:
     progress: plain
 
-# Builder for ARM64 accessories
-builders:
-  infrastructure:
-    arch: arm64
-    args:
-      progress: plain
+# Note: Accessories inherit builder config from main builder
 
 # Environment variables
 env:

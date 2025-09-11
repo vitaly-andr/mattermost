@@ -1,17 +1,30 @@
 [DEFAULT]
-bantime = 3600
+bantime = 1800
 findtime = 600
-maxretry = 3
+maxretry = 10
 backend = auto
 usedns = warn
+
+# Ignore private networks and localhost
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/16 192.168.0.0/16 172.16.0.0/12 178.34.78.39
 
 [sshd]
 enabled = true
 port = ssh
 filter = sshd
 logpath = /var/log/auth.log
-maxretry = 3
-bantime = 3600
+maxretry = 10
+findtime = 600
+bantime = 1800
+
+# Progressive banning for repeat offenders
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+maxretry = 5      # 5 банов за 24 часа
+findtime = 86400  # окно 24 часа
+bantime = 86400   # бан на 24 часа
 
 # Mattermost protection (only on chat-sputnik server)
 {% if 'chat-sputnik' in inventory_hostname %}
@@ -21,8 +34,8 @@ port = 8065
 filter = mattermost-auth
 logpath = /var/log/mattermost/mattermost.log
 maxretry = 10
-bantime = 1800
-findtime = 300
+bantime = 600
+findtime = 600
 
 [mattermost-api]
 enabled = true
@@ -36,13 +49,6 @@ findtime = 300
 
 # Infrastructure services protection (only on etc-sputnik server)
 {% if 'etc-sputnik' in inventory_hostname %}
-[nginx-http-auth]
-enabled = true
-filter = nginx-http-auth
-logpath = /var/log/nginx/error.log
-maxretry = 3
-bantime = 3600
-
 [grafana]
 enabled = true
 port = 3000
@@ -64,14 +70,14 @@ enabled = true
 port = 9090
 filter = cockpit
 logpath = /var/log/cockpit/cockpit.log
-maxretry = 5
-bantime = 3600
+maxretry = 10
+bantime = 600
 
 [portainer]
 enabled = true
 port = 9443
 filter = portainer
 logpath = /var/log/portainer/portainer.log
-maxretry = 5
-bantime = 3600
+maxretry = 10
+bantime = 600
 {% endif %}
