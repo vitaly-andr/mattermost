@@ -1,10 +1,7 @@
 # Multi-stage Dockerfile for building Mattermost from source
 # For Intel/AMD64 architecture
 
-# Stage 1: Extract node_modules from official Mattermost webapp
-FROM mattermost/mattermost-enterprise-edition:latest AS deps-source
-
-# Stage 2: Build custom webapp using official dependencies
+# Stage 1: Build custom webapp
 FROM node:20-alpine AS webapp-builder
 
 WORKDIR /build
@@ -15,22 +12,14 @@ RUN apk add --no-cache python3 make g++ git
 # Copy YOUR custom webapp source code
 COPY webapp/ ./webapp/
 
-# Try to copy node_modules from official image (if exists)
-COPY --from=deps-source /mattermost/client/node_modules ./webapp/node_modules || true
-
-# Fallback: if node_modules don't exist, install them
+# Install webapp dependencies and build
 WORKDIR /build/webapp
-RUN if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then \
-        echo "Installing node_modules from scratch..."; \
-        npm install; \
-    else \
-        echo "Using copied node_modules"; \
-    fi
+RUN npm install
 
 # Build YOUR custom webapp
 RUN npm run build
 
-# Stage 3: Build custom server
+# Stage 2: Build custom server
 FROM golang:1.24-alpine AS server-builder
 
 WORKDIR /build
@@ -61,7 +50,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
              -X "github.com/mattermost/mattermost/server/public/model.BuildHash='$(git rev-parse HEAD)'"' \
     -o mattermost ./cmd/mattermost
 
-# Stage 4: Runtime with YOUR custom build
+# Stage 3: Runtime with YOUR custom build
 FROM alpine:3.19
 
 # Install runtime dependencies
