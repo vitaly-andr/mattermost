@@ -1,7 +1,10 @@
 # Multi-stage Dockerfile for building Mattermost from source
-# Optimized for ARM64 architecture
+# For Intel/AMD64 architecture
 
-# Stage 1: Build webapp
+# Stage 1: Extract node_modules from official Mattermost webapp
+FROM mattermost/mattermost-enterprise-edition:latest AS deps-source
+
+# Stage 2: Build custom webapp using official dependencies
 FROM node:20-alpine AS webapp-builder
 
 WORKDIR /build
@@ -9,17 +12,25 @@ WORKDIR /build
 # Install dependencies for native modules
 RUN apk add --no-cache python3 make g++ git
 
-# Copy all webapp source
+# Copy YOUR custom webapp source code
 COPY webapp/ ./webapp/
 
-# Install webapp dependencies and build (using same logic as Makefile)
-WORKDIR /build/webapp
-RUN npm install
+# Try to copy node_modules from official image (if exists)
+COPY --from=deps-source /mattermost/client/node_modules ./webapp/node_modules || true
 
-# Build webapp
+# Fallback: if node_modules don't exist, install them
+WORKDIR /build/webapp
+RUN if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then \
+        echo "Installing node_modules from scratch..."; \
+        npm install; \
+    else \
+        echo "Using copied node_modules"; \
+    fi
+
+# Build YOUR custom webapp
 RUN npm run build
 
-# Stage 2: Build server
+# Stage 3: Build custom server
 FROM golang:1.24-alpine AS server-builder
 
 WORKDIR /build
@@ -35,22 +46,22 @@ COPY server/public/go.mod server/public/go.sum ./public/
 WORKDIR /build/server
 RUN go mod download
 
-# Copy all source code
+# Copy YOUR custom source code
 COPY . /build/
 
-# Copy built webapp from previous stage
+# Copy YOUR custom built webapp from previous stage
 COPY --from=webapp-builder /build/webapp/channels/dist /build/webapp/channels/dist/
 
-# Build server and tools
+# Build YOUR custom server for AMD64
 WORKDIR /build/server
 RUN make prepackaged-binaries
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags '-X "github.com/mattermost/mattermost/server/public/model.BuildNumber=production" \
              -X "github.com/mattermost/mattermost/server/public/model.BuildDate='$(date -u)'" \
              -X "github.com/mattermost/mattermost/server/public/model.BuildHash='$(git rev-parse HEAD)'"' \
     -o mattermost ./cmd/mattermost
 
-# Stage 3: Runtime
+# Stage 4: Runtime with YOUR custom build
 FROM alpine:3.19
 
 # Install runtime dependencies
@@ -69,11 +80,11 @@ RUN addgroup -g 2000 mattermost && \
 RUN mkdir -p /mattermost/{data,logs,plugins,client,config,bin} && \
     chown -R mattermost:mattermost /mattermost
 
-# Copy built binaries
+# Copy YOUR custom built binaries
 COPY --from=server-builder --chown=mattermost:mattermost /build/server/mattermost /mattermost/bin/
 COPY --from=server-builder --chown=mattermost:mattermost /build/server/bin/mmctl /mattermost/bin/
 
-# Copy webapp
+# Copy YOUR custom webapp
 COPY --from=webapp-builder --chown=mattermost:mattermost /build/webapp/channels/dist /mattermost/client/
 
 # Copy default config
