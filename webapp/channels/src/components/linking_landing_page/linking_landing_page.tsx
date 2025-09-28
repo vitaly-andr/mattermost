@@ -10,7 +10,7 @@ import ExternalLink from 'components/external_link';
 
 import desktopImg from 'images/deep-linking/deeplinking-desktop-img.png';
 import mobileImg from 'images/deep-linking/deeplinking-mobile-img.png';
-import MattermostLogoSvg from 'images/logo.svg';
+import BauPortalLogoSvg from 'images/bau-portal-logo.svg';
 import {LandingPreferenceTypes} from 'utils/constants';
 import * as UserAgent from 'utils/user_agent';
 import * as Utils from 'utils/utils';
@@ -410,7 +410,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let header = (
             <div className='get-app__header'>
                 <img
-                    src={MattermostLogoSvg}
+                    src={BauPortalLogoSvg}
                     className='get-app__logo'
                 />
             </div>
