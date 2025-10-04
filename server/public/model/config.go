@@ -124,7 +124,7 @@ const (
 	ServiceSettingsMaxUniqueReactionsPerPost     = 500
 
 	TeamSettingsDefaultSiteName              = "Mattermost"
-	TeamSettingsDefaultMaxUsersPerTeam       = 50
+	TeamSettingsDefaultMaxUsersPerTeam       = 999999  // Unlimited users per team for Bau-Portal
 	TeamSettingsDefaultCustomBrandText       = ""
 	TeamSettingsDefaultCustomDescriptionText = ""
 	TeamSettingsDefaultUserStatusAwayTimeout = 300
@@ -2395,7 +2395,7 @@ func (s *TeamSettings) SetDefaults() {
 	}
 
 	if s.MaxChannelsPerTeam == nil {
-		s.MaxChannelsPerTeam = NewPointer(int64(2000))
+		s.MaxChannelsPerTeam = NewPointer(int64(999999))  // Unlimited channels per team for Bau-Portal
 	}
 
 	if s.MaxNotificationsPerChannel == nil {
@@ -4041,11 +4041,12 @@ func (o *Config) IsValid() *AppError {
 }
 
 func (s *TeamSettings) isValid() *AppError {
-	if *s.MaxUsersPerTeam <= 0 {
+	// Removed limits validation for Bau-Portal - allow unlimited users and channels
+	if *s.MaxUsersPerTeam < 0 {
 		return NewAppError("Config.IsValid", "model.config.is_valid.max_users.app_error", nil, "", http.StatusBadRequest)
 	}
 
-	if *s.MaxChannelsPerTeam <= 0 {
+	if *s.MaxChannelsPerTeam < 0 {
 		return NewAppError("Config.IsValid", "model.config.is_valid.max_channels.app_error", nil, "", http.StatusBadRequest)
 	}
 

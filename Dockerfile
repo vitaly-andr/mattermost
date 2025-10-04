@@ -1,26 +1,26 @@
-# Multi-arch заглушка для Kamal
-# Работает на AMD64 и ARM64
-FROM alpine:3.19
+# Wrapper Dockerfile - используем официальный образ как базу
+FROM mattermost/mattermost-enterprise-edition:latest
 
-# Установим базовые пакеты
+# Добавляем свои кастомизации
+USER root
+
+# Устанавливаем дополнительные пакеты (если нужно)
 RUN apk add --no-cache \
     curl \
-    ca-certificates
+    jq \
+    htop
 
-# Создаем пользователя
-RUN addgroup -g 2000 app && \
-    adduser -D -u 2000 -G app -h /app -s /bin/sh app
+# Копируем свои конфиги (если есть)
+# COPY config/custom-config.json /mattermost/config/
 
-# Создаем директории
-RUN mkdir -p /app/data /app/logs && \
-    chown -R app:app /app
+# Копируем свои плагины (если есть)
+# COPY plugins/ /mattermost/plugins/
 
-USER app
-WORKDIR /app
+# Копируем свои темы/кастомизации (если есть)
+# COPY themes/ /mattermost/client/
 
-# Простой health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD echo "OK"
+# Возвращаемся к пользователю mattermost
+USER mattermost
 
-# Заглушка - просто спим
-CMD ["sleep", "infinity"]
+# Используем стандартную команду запуска
+CMD ["mattermost"]

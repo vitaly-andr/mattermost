@@ -183,6 +183,7 @@ var config = {
                 {from: 'src/images/logo_email_dark.png', to: 'images'},
                 {from: 'src/images/logo_email_gray.png', to: 'images'},
                 {from: 'src/images/bau-portal-logo.svg', to: 'images'},
+                {from: 'src/images/builder.svg', to: 'images'},
                 {from: 'src/images/forgot_password_illustration.png', to: 'images'},
                 {from: 'src/images/invite_illustration.png', to: 'images'},
                 {from: 'src/images/channel_icon.png', to: 'images'},

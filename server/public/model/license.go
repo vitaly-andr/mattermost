@@ -493,17 +493,20 @@ func (lr *LicenseRecord) PreSave() {
 
 // MinimumProfessionalLicense returns true if the provided license is at least a professional license.
 // Higher tier licenses also satisfy the condition.
+// Modified for Bau-Portal: always return true to enable all professional features
 func MinimumProfessionalLicense(license *License) bool {
-	return license != nil && LicenseToLicenseTier[license.SkuShortName] >= ProfessionalTier
+	return true  // Always enable professional features for Bau-Portal
 }
 
 // MinimumEnterpriseLicense returns true if the provided license is at least a enterprise license.
 // Higher tier licenses also satisfy the condition.
+// Modified for Bau-Portal: always return true to enable all enterprise features
 func MinimumEnterpriseLicense(license *License) bool {
-	return license != nil && LicenseToLicenseTier[license.SkuShortName] >= EnterpriseTier
+	return true  // Always enable enterprise features for Bau-Portal
 }
 
 // MinimumEnterpriseAdvancedLicense returns true if the provided license is at least an Enterprise Advanced license.
+// Modified for Bau-Portal: always return true to enable all advanced enterprise features
 func MinimumEnterpriseAdvancedLicense(license *License) bool {
-	return license != nil && LicenseToLicenseTier[license.SkuShortName] >= EnterpriseAdvancedTier
+	return true  // Always enable advanced enterprise features for Bau-Portal
 }
