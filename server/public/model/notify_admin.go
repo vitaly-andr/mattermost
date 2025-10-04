@@ -33,18 +33,9 @@ var validSKUs = map[string]struct{}{
 }
 
 // These are the features a non admin would typically ping an admin about
+// Disabled for Bau-Portal - all features are available
 var paidFeatures = map[MattermostFeature]struct{}{
-	PaidFeatureGuestAccounts:                {},
-	PaidFeatureCustomUsergroups:             {},
-	PaidFeatureCreateMultipleTeams:          {},
-	PaidFeatureStartcall:                    {},
-	PaidFeaturePlaybooksRetrospective:       {},
-	PaidFeatureUnlimitedMessages:            {},
-	PaidFeatureUnlimitedFileStorage:         {},
-	PaidFeatureAllProfessionalfeatures:      {},
-	PaidFeatureAllEnterprisefeatures:        {},
-	UpgradeDowngradedWorkspace:              {},
-	PaidFeatureHighlightWithoutNotification: {},
+	// All features disabled for Bau-Portal custom build
 }
 
 type NotifyAdminToUpgradeRequest struct {
