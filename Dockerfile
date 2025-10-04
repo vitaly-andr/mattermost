@@ -1,26 +1,23 @@
-# Wrapper Dockerfile - используем официальный образ как базу
+# Bau-Portal Mattermost - wrapper over official Enterprise Edition
 FROM mattermost/mattermost-enterprise-edition:latest
 
-# Добавляем свои кастомизации
+# Switch to root for customizations
 USER root
 
-# Устанавливаем дополнительные пакеты (если нужно)
+# Install additional tools for debugging/management
 RUN apk add --no-cache \
     curl \
     jq \
-    htop
+    htop \
+    nano
 
-# Копируем свои конфиги (если есть)
-# COPY config/custom-config.json /mattermost/config/
-
-# Копируем свои плагины (если есть)
+# Copy custom configurations (if needed)
+# COPY config/bau-portal-config.json /mattermost/config/
 # COPY plugins/ /mattermost/plugins/
-
-# Копируем свои темы/кастомизации (если есть)
 # COPY themes/ /mattermost/client/
 
-# Возвращаемся к пользователю mattermost
+# Switch back to mattermost user
 USER mattermost
 
-# Используем стандартную команду запуска
-CMD ["mattermost"]
+# Use standard startup command
+CMD ["/mattermost/bin/mattermost"]
