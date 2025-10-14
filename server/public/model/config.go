@@ -124,7 +124,7 @@ const (
 	ServiceSettingsMaxUniqueReactionsPerPost     = 500
 
 	TeamSettingsDefaultSiteName              = "Mattermost"
-	TeamSettingsDefaultMaxUsersPerTeam       = 999999  // Unlimited users per team for Bau-Portal
+	TeamSettingsDefaultMaxUsersPerTeam       = 999999  // Unlimited users per team for Sputnik-school
 	TeamSettingsDefaultCustomBrandText       = ""
 	TeamSettingsDefaultCustomDescriptionText = ""
 	TeamSettingsDefaultUserStatusAwayTimeout = 300
@@ -2395,7 +2395,7 @@ func (s *TeamSettings) SetDefaults() {
 	}
 
 	if s.MaxChannelsPerTeam == nil {
-		s.MaxChannelsPerTeam = NewPointer(int64(999999))  // Unlimited channels per team for Bau-Portal
+		s.MaxChannelsPerTeam = NewPointer(int64(999999))  // Unlimited channels per team for Sputnik-school
 	}
 
 	if s.MaxNotificationsPerChannel == nil {
@@ -4041,7 +4041,7 @@ func (o *Config) IsValid() *AppError {
 }
 
 func (s *TeamSettings) isValid() *AppError {
-	// Removed limits validation for Bau-Portal - allow unlimited users and channels
+	// Removed limits validation for Sputnik-school - allow unlimited users and channels
 	if *s.MaxUsersPerTeam < 0 {
 		return NewAppError("Config.IsValid", "model.config.is_valid.max_users.app_error", nil, "", http.StatusBadRequest)
 	}

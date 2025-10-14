@@ -1,4 +1,4 @@
-# Bau-Portal Mattermost - wrapper over official Enterprise Edition
+# Sputnik-school Mattermost - wrapper over official Enterprise Edition
 FROM mattermost/mattermost-enterprise-edition:latest
 
 # Switch to root for customizations
@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     nano
 
 # Copy custom configurations (if needed)
-# COPY config/bau-portal-config.json /mattermost/config/
+# COPY config/sputnik-school-config.json /mattermost/config/
 # COPY plugins/ /mattermost/plugins/
 # COPY themes/ /mattermost/client/
 

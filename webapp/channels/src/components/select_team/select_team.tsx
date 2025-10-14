@@ -22,7 +22,7 @@ import LoadingScreen from 'components/loading_screen';
 import SystemPermissionGate from 'components/permissions_gates/system_permission_gate';
 import LogoutIcon from 'components/widgets/icons/fa_logout_icon';
 
-import logoImage from 'images/bau-portal-logo.svg';
+import logoImage from 'images/sputnik-logo.png';
 import Constants from 'utils/constants';
 import * as UserAgent from 'utils/user_agent';
 

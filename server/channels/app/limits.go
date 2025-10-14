@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	maxUsersLimit     = 0 // Disable user limits for Bau-Portal
-	maxUsersHardLimit = 0 // Disable hard user limits for Bau-Portal
+	maxUsersLimit     = 0 // Disable user limits for Sputnik-school
+	maxUsersHardLimit = 0 // Disable hard user limits for Sputnik-school
 )
 
 func (a *App) GetServerLimits() (*model.ServerLimits, *model.AppError) {

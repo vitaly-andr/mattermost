@@ -33,9 +33,9 @@ var validSKUs = map[string]struct{}{
 }
 
 // These are the features a non admin would typically ping an admin about
-// Disabled for Bau-Portal - all features are available
+// Disabled for Sputnik-school - all features are available
 var paidFeatures = map[MattermostFeature]struct{}{
-	// All features disabled for Bau-Portal custom build
+	// All features disabled for Sputnik-school custom build
 }
 
 type NotifyAdminToUpgradeRequest struct {
