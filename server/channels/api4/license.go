@@ -235,14 +235,23 @@ func requestTrialLicense(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getPrevTrialLicense(c *Context, w http.ResponseWriter, r *http.Request) {
+	// Modified for Bau-Portal: Return empty license instead of 403 when LicenseManager is nil (Team Edition)
 	if c.App.Srv().Platform().LicenseManager() == nil {
-		c.Err = model.NewAppError("getPrevTrialLicense", "api.license.upgrade_needed.app_error", nil, "", http.StatusForbidden)
+		// Return empty map instead of error for Team Edition compatibility
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte("{}")); err != nil {
+			c.Logger.Warn("Error while writing response", mlog.Err(err))
+		}
 		return
 	}
 
 	license, err := c.App.Srv().Platform().LicenseManager().GetPrevTrial()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// Return empty map instead of 500 error
+		w.Header().Set("Content-Type", "application/json")
+		if _, writeErr := w.Write([]byte("{}")); writeErr != nil {
+			c.Logger.Warn("Error while writing response", mlog.Err(writeErr))
+		}
 		return
 	}
 
