@@ -11,6 +11,7 @@ WORKDIR /mattermost
 
 # Install build dependencies for native npm modules
 RUN apk add --no-cache \
+    bash \
     python3 \
     make \
     g++ \
