@@ -17,7 +17,9 @@ RUN apk add --no-cache \
     autoconf \
     automake \
     libtool \
-    nasm
+    nasm \
+    pkgconf \
+    libpng-dev
 
 # Copy webapp package files first for better layer caching
 COPY webapp/package*.json ./webapp/
