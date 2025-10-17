@@ -21,18 +21,12 @@ RUN apk add --no-cache \
     pkgconf \
     libpng-dev
 
-# Copy webapp package files first for better layer caching
-COPY webapp/package*.json ./webapp/
-COPY webapp/channels/package*.json ./webapp/channels/
-COPY webapp/platform/client/package.json ./webapp/platform/client/
-COPY webapp/platform/types/package.json ./webapp/platform/types/
+# Copy all webapp source code (needed for postinstall scripts)
+COPY webapp/ ./webapp/
 
 # Install dependencies
 WORKDIR /mattermost/webapp
 RUN npm ci --legacy-peer-deps
-
-# Copy webapp source code
-COPY webapp/ ./
 
 # Build webapp (webpack compilation)
 WORKDIR /mattermost/webapp/channels
