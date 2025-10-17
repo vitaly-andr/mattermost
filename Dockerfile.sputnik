@@ -9,6 +9,16 @@
 FROM --platform=$BUILDPLATFORM node:20-alpine AS webapp
 WORKDIR /mattermost
 
+# Install build dependencies for native npm modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    autoconf \
+    automake \
+    libtool \
+    nasm
+
 # Copy webapp package files first for better layer caching
 COPY webapp/package*.json ./webapp/
 COPY webapp/channels/package*.json ./webapp/channels/
