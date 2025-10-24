@@ -9,7 +9,8 @@
 FROM --platform=$BUILDPLATFORM node:20-alpine AS webapp
 WORKDIR /mattermost
 
-# Install build dependencies for native npm modules
+# Install stable build dependencies (available in Alpine main repository)
+# These packages are part of Alpine stable and don't require edge repository
 RUN apk add --no-cache \
     bash \
     python3 \
@@ -20,7 +21,31 @@ RUN apk add --no-cache \
     libtool \
     nasm \
     pkgconf \
-    libpng-dev
+    libpng-dev \
+    gifsicle \
+    optipng
+
+# Install imagemin native dependencies from Alpine edge repository (ARM64 requirement)
+#
+# Background: Alpine 3.20 stable lacks libimagequant 4.x and mozjpeg packages
+# These are REQUIRED for successful compilation of:
+#   - imagemin-pngquant (needs libimagequant-dev 4.x)
+#   - imagemin-mozjpeg (needs mozjpeg-dev)
+#
+# Versions are PINNED to prevent unexpected breaking changes during rebuilds
+# If these versions become unavailable, build will fail explicitly (desired behavior)
+# rather than silently pulling incompatible versions
+#
+# Migration path: Monitor Alpine 3.21+ stable releases
+# When these packages appear in stable main/community repositories,
+# migrate back to stable to reduce edge repository dependency
+#
+# Review date: 2025-04-17 (6 months from implementation)
+# Last verified: 2025-10-17
+RUN apk add --no-cache \
+    --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
+    libimagequant-dev=4.3.3-r0 \
+    mozjpeg-dev=4.1.5-r0
 
 # Copy all webapp source code (needed for postinstall scripts)
 COPY webapp/ ./webapp/
